@@ -1,16 +1,15 @@
-## Hi there 👋
+# Hi 👋, I'm Ethan!
 
-<!--
-**turtle-geek/turtle-geek** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+### About Me
+* 🎓 **CS student** at the University of Toronto specializing in Software Engineering.
+* ⚙️ **Systems Developer** building reliable software for data collection and communication.
+* 🔥 **Passionate** about Human-AI interaction and using ML to turn messy data into useful tools.
 
-Here are some ideas to get you started:
+In the past, I've built geospatial pipelines to analyze patient care journeys, engineered real-time fraud detectors using multimodal agentic systems, and developed head-pose estimation models achieving 93.36% accuracy.
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+I also won Top 5 at DataFest and have competed in 3 hackathons where I engineered systems for fraud detection, healthcare optimization, and multimodal interaction.
+
+### Connect with me:
+<a href="https://www.linkedin.com/in/ethan-yz-zhang">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg" alt="LinkedIn Official Icon" width="45">
+</a>
