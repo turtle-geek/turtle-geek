@@ -10,6 +10,6 @@ In the past, I've built geospatial pipelines to analyze patient care journeys, e
 I also won Top 5 at DataFest and have competed in 3 hackathons where I engineered systems for fraud detection, healthcare optimization, and multimodal interaction.
 
 ### Connect with me:
-<a href="https://www.linkedin.com/in/ethan-yz-zhang">
+<a href="https://www.linkedin.com/in/ethany-zhang">
   <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/LinkedIn_icon.svg" alt="LinkedIn Official Icon" width="45">
 </a>
