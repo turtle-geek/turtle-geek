@@ -20,6 +20,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: python scripts/forest.py --user ${{ github.repository_owner }}
+        env:
+          FOREST_TOKEN: ${{ secrets.FOREST_TOKEN }}  # optional: days in your own timezone
       - name: Commit if changed
         run: |
           git config user.name "github-actions[bot]"

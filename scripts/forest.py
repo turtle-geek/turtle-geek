@@ -12,6 +12,8 @@ Drop a PNG in assets/sprites/<name>.png (tree1..tree4, stick) to replace any spr
 import argparse
 import base64
 import datetime as dt
+import json
+import os
 import pathlib
 import random
 import re
@@ -166,6 +168,30 @@ def sprites(theme):
 
 
 def fetch(user):
+    """Per-day counts for the last year. With FOREST_TOKEN set (a token of yours,
+    no scopes needed) GitHub answers as you, so days follow your own timezone;
+    without it we read the public page, which groups days in UTC."""
+    token = os.environ.get("FOREST_TOKEN")
+    return fetch_api(user, token) if token else fetch_page(user)
+
+
+def fetch_api(user, token):
+    query = ('query($u:String!){user(login:$u){contributionsCollection{contributionCalendar'
+             '{totalContributions weeks{contributionDays{date contributionCount}}}}}}')
+    req = urllib.request.Request(
+        "https://api.github.com/graphql",
+        data=json.dumps({"query": query, "variables": {"u": user}}).encode(),
+        headers={"Authorization": f"bearer {token}", "User-Agent": "forest-svg"})
+    cal = json.load(urllib.request.urlopen(req, timeout=30))["data"]["user"][
+        "contributionsCollection"]["contributionCalendar"]
+    days = [(d["date"], d["contributionCount"]) for w in cal["weeks"] for d in w["contributionDays"]]
+    total = cal["totalContributions"]
+    if len(days) < 365 or sum(n for _, n in days) != total:
+        raise SystemExit(f"API data didn't add up ({len(days)} days, total {total})")
+    return levels(sorted(days)), f"{total:,}"
+
+
+def fetch_page(user):
     url = f"https://github.com/users/{user}/contributions"
     req = urllib.request.Request(url, headers={"User-Agent": "forest-svg"})
     page = urllib.request.urlopen(req, timeout=30).read().decode()
