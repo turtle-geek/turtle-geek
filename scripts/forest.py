@@ -39,7 +39,7 @@ LEAVES = {
 }
 CUTS = (1, 2, 5, 10)  # commits needed for tree1..tree4
 
-# One silhouette per level, and height grows with commits (7 < 10 < 11 < 13 rows):
+# One silhouette per level, and height grows with commits (7 < 10 < 11 < 12 rows):
 # small pine < pine < round tree < tall oval tree.
 # Light comes from the top-left and every canopy has a dark underside, so a
 # tree's bright top always reads against the dark bottom of the one behind it.
@@ -75,7 +75,6 @@ SHAPES = {
         "..ssTss.."],
     4: ["...aab...",
         "..aaabb..",
-        "..aabbc..",
         ".aaabbcc.",
         ".aabbbcc.",
         ".ccbbbdd.",  # inner layer line: a darker band that sags in the
