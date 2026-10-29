@@ -12,7 +12,6 @@ Drop a PNG in assets/sprites/<name>.png (tree1..tree4, stick) to replace any spr
 import argparse
 import base64
 import datetime as dt
-import html
 import pathlib
 import random
 import re
@@ -20,7 +19,7 @@ import struct
 import urllib.request
 
 PITCH_X, PITCH_Y = 16, 14  # cell spacing in SVG units; sprites are 18 wide, up to 26 tall
-LEFT, TOP, BOTTOM = 34, 44, 34
+LEFT, TOP, BOTTOM = 4, 16, 26  # room for overhanging sprites, and the count line below
 SPRITE_DIR = pathlib.Path(__file__).resolve().parent.parent / "assets" / "sprites"
 
 SHADOW = "rgba(0,0,0,0.5)"
@@ -204,53 +203,35 @@ def demo_days():
 
 
 def render(days, total, theme="dark"):
+    """The forest plus a one-line count; no month/weekday labels or legend."""
     first = dt.date.fromisoformat(days[0][0])
     start = first - dt.timedelta(days=(first.weekday() + 1) % 7)  # Sunday
     cols = (dt.date.fromisoformat(days[-1][0]) - start).days // 7 + 1
-    width = LEFT + cols * PITCH_X + 8
+    width = LEFT + cols * PITCH_X + LEFT
     grid_bottom = TOP + 7 * PITCH_Y
     height = grid_bottom + BOTTOM
     sp = sprites(theme)
 
-    placed, months, last_month = [], [], None
+    placed = []
     for date, level in days:
-        d = dt.date.fromisoformat(date)
-        offset = (d - start).days
+        offset = (dt.date.fromisoformat(date) - start).days
         col, row = offset // 7, offset % 7
         ref = f"tree{level}" if level else "stick"
         _, w, h = sp[ref]
         x = LEFT + col * PITCH_X + (PITCH_X - w) // 2
         base = TOP + (row + 1) * PITCH_Y
         placed.append((row, col, ref, x, base - h))
-        if row == 0 and d.month != last_month and d.day <= 7:
-            months.append(f'<text x="{LEFT + col * PITCH_X}" y="14">{d.strftime("%b")}</text>')
-            last_month = d.month
 
     # Back-to-front: higher rows first so lower trees overlap them
     placed.sort()
     body = "".join(f'<use href="#{ref}" x="{x}" y="{y}"/>' for _, _, ref, x, y in placed)
-
-    weekdays = "".join(
-        f'<text x="0" y="{TOP + (r + 1) * PITCH_Y - 3}">{name}</text>'
-        for r, name in ((1, "Mon"), (3, "Wed"), (5, "Fri")))
-
-    legend_refs = ["stick", "tree1", "tree2", "tree3", "tree4"]
-    step = 18
-    lx = width - 34 - len(legend_refs) * step
-    ly = grid_bottom + 26
-    legend = (f'<text x="{lx - 30}" y="{ly}">Less</text>'
-              + "".join(f'<use href="#{r}" x="{lx + i * step}" y="{ly + 3 - sp[r][2]}"/>'
-                        for i, r in enumerate(legend_refs))
-              + f'<text x="{lx + len(legend_refs) * step + 2}" y="{ly}">More</text>')
-    caption = (f'<text x="{LEFT}" y="{ly}">{html.escape(total)} contributions in the last year</text>'
+    caption = (f'<text x="{LEFT}" y="{grid_bottom + 18}">{total} contributions in the last year</text>'
                if total else "")
-
     defs = "".join(f'<g id="{k}">{svg}</g>' for k, (svg, _, _) in sp.items())
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
             f'viewBox="0 0 {width} {height}" shape-rendering="crispEdges">'
-            '<style>text{font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#8b949e}</style>'
-            f'<defs>{defs}</defs>'
-            f'{"".join(months)}{weekdays}{body}{legend}{caption}</svg>')
+            '<style>text{font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#8b949e}</style>'
+            f'<defs>{defs}</defs>{body}{caption}</svg>')
 
 
 def main():
