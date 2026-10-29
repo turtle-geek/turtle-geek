@@ -179,7 +179,11 @@ def fetch(user):
         cell = re.search(r'id="([^"]+)"', td).group(1)
         days.append((date, counts.get(cell, 0)))
     total = re.search(r"([\d,]+)\s+contributions?\s+in the last year", page)
-    return levels(sorted(days)), (total.group(1) if total else None)
+    # Fail loudly rather than publish a wrong forest if GitHub changes the page:
+    # the per-day counts must cover the year and add up to GitHub's own total.
+    if len(days) < 365 or not total or sum(n for _, n in days) != int(total.group(1).replace(",", "")):
+        raise SystemExit(f"contribution page didn't parse cleanly ({len(days)} days, total {total and total.group(1)})")
+    return levels(sorted(days)), total.group(1)
 
 
 def levels(days):
