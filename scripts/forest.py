@@ -19,7 +19,7 @@ import struct
 import urllib.request
 
 PITCH_X, PITCH_Y = 16, 14  # cell spacing in SVG units; sprites are 18 wide, up to 26 tall
-LEFT, TOP, BOTTOM = 4, 16, 26  # room for overhanging sprites, and the count line below
+LEFT, TOP, BOTTOM = 4, 16, 4  # just enough room for sprites that overhang their cell
 SPRITE_DIR = pathlib.Path(__file__).resolve().parent.parent / "assets" / "sprites"
 
 SHADOW = "rgba(0,0,0,0.5)"
@@ -201,14 +201,13 @@ def demo_days():
     return days, "717"
 
 
-def render(days, total, theme="dark"):
-    """The forest plus a one-line count; no month/weekday labels or legend."""
+def render(days, theme="dark"):
+    """Just the forest: no labels, legend or caption, so it reads as a clean strip."""
     first = dt.date.fromisoformat(days[0][0])
     start = first - dt.timedelta(days=(first.weekday() + 1) % 7)  # Sunday
     cols = (dt.date.fromisoformat(days[-1][0]) - start).days // 7 + 1
     width = LEFT + cols * PITCH_X + LEFT
-    grid_bottom = TOP + 7 * PITCH_Y
-    height = grid_bottom + BOTTOM
+    height = TOP + 7 * PITCH_Y + BOTTOM
     sp = sprites(theme)
 
     placed = []
@@ -224,13 +223,10 @@ def render(days, total, theme="dark"):
     # Back-to-front: higher rows first so lower trees overlap them
     placed.sort()
     body = "".join(f'<use href="#{ref}" x="{x}" y="{y}"/>' for _, _, ref, x, y in placed)
-    caption = (f'<text x="{LEFT}" y="{grid_bottom + 18}">{total} contributions in the last year</text>'
-               if total else "")
     defs = "".join(f'<g id="{k}">{svg}</g>' for k, (svg, _, _) in sp.items())
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
             f'viewBox="0 0 {width} {height}" shape-rendering="crispEdges">'
-            '<style>text{font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#8b949e}</style>'
-            f'<defs>{defs}</defs>{body}{caption}</svg>')
+            f'<defs>{defs}</defs>{body}</svg>')
 
 
 def main():
@@ -242,7 +238,7 @@ def main():
     days, total = demo_days() if args.demo else fetch(args.user)
     for theme in ("dark", "light"):
         out = pathlib.Path(args.out_dir) / f"forest-{theme}.svg"
-        out.write_text(render(days, total, theme), encoding="utf-8")
+        out.write_text(render(days, theme), encoding="utf-8")
         print(f"wrote {out} ({len(days)} days, {total} contributions)")
 
 
