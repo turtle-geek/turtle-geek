@@ -24,12 +24,11 @@ PITCH_X, PITCH_Y = 16, 14  # cell spacing in SVG units; sprites are 18 wide, up 
 LEFT, TOP, BOTTOM = 4, 16, 4  # just enough room for sprites that overhang their cell
 SPRITE_DIR = pathlib.Path(__file__).resolve().parent.parent / "assets" / "sprites"
 
-SHADOW = "rgba(0,0,0,0.5)"
-LIGHT_SHADOW = "rgba(0,0,0,0.18)"
-LIGHT_RIM = "rgba(255,255,255,0.75)"
-RIM = "rgba(0,0,0,0.6)"  # soft drop shadow; only shows where it falls on another tree
-TRUNK = {"t": "#7a5638", "T": "#5a3e29", "s": SHADOW, "r": RIM}
-DEAD = {"x": "#54443a", "w": "#433629", "W": "#33291f", "V": "#261e17", "s": SHADOW}
+SHADOW = "rgba(0,0,0,0.3)"  # light enough not to blot on dark dimmed (#22272e)
+LIGHT_SHADOW = "rgba(0,0,0,0.15)"
+TRUNK = {"t": "#7a5638", "T": "#5a3e29", "s": SHADOW}
+# Dark mode must work on both GitHub dark (#0d1117) and dark dimmed (#22272e)
+DEAD = {"x": "#6e5c4c", "w": "#5f4d3d", "W": "#4d3d30", "V": "#3b2f25", "s": SHADOW}
 LIGHT_DEAD = {"x": "#bfb0a2", "w": "#a59382", "W": "#8c7a68", "V": "#766553", "s": "rgba(0,0,0,0.12)"}
 
 # Leaf palettes per level: a=highlight b=light c=mid d=underside
@@ -93,17 +92,16 @@ SCALE = 2  # each art pixel is 2x2 SVG units
 
 
 def with_rim(rows):
-    """Pad by one pixel on the sides and top and give the canopy a standard
-    pixel-art outline 'r' (a translucent shadow) on its top and sides: any empty
-    pixel directly above, left or right of a leaf. No diagonals, so it steps
-    with the canopy instead of wrapping round corners. Over the tree behind it
-    reads as a gap; on the background it vanishes."""
+    """Pad by one pixel on the sides and top and mark 'r', the gap line: every
+    empty pixel directly above a leaf, so it steps along the top of the canopy
+    without notching into the sides. render() draws it only
+    where it lands on a tree behind, so it reads as a gap, never an outline."""
     grid = [["."] * (len(rows[0]) + 2)] + [list("." + r + ".") for r in rows]
     leaf = lambda j, i: 0 <= j < len(grid) and 0 <= i < len(grid[0]) and grid[j][i] in "abcd"
     out = [row[:] for row in grid]
     for y, row in enumerate(grid):
         for x, ch in enumerate(row):
-            if ch == "." and (leaf(y + 1, x) or leaf(y, x - 1) or leaf(y, x + 1)):
+            if ch == "." and leaf(y + 1, x):
                 out[y][x] = "r"
     return ["".join(r) for r in out]
 
@@ -150,20 +148,29 @@ def custom_sprite(name):
     return (f'<image href="{uri}" width="{w}" height="{h}" style="image-rendering:pixelated"/>', w, h)
 
 
+def pixels(rows, chars):
+    """Art-pixel (x, y) positions of the given characters."""
+    return [(x, y) for y, row in enumerate(rows) for x, ch in enumerate(row) if ch in chars]
+
+
 def sprites(theme):
-    """id -> (svg, width, height) in SVG units; every sprite is bottom-anchored."""
+    """id -> (svg, width, height, solid, rim) in SVG units; bottom-anchored.
+    solid: art pixels the sprite covers; rim: art pixels of its gap line."""
     out = {}
     for name, (lvl, rows) in TREES.items():
         rows = with_rim(rows)
-        # on white a dark rim reads as a grey outline, so light mode uses a white one
-        trunk = TRUNK if theme == "dark" else {**TRUNK, "r": LIGHT_RIM, "s": LIGHT_SHADOW}
+        trunk = TRUNK if theme == "dark" else {**TRUNK, "s": LIGHT_SHADOW}
         out[name] = (sprite_rects(rows, {**trunk, **LEAVES[lvl]}, SCALE),
-                     len(rows[0]) * SCALE, len(rows) * SCALE)
+                     len(rows[0]) * SCALE, len(rows) * SCALE,
+                     pixels(rows, "abcdtT"), pixels(rows, "r"))
     for name, rows in BARREN.items():
         dead = DEAD if theme == "dark" else LIGHT_DEAD
-        out[name] = (sprite_rects(rows, dead, SCALE), len(rows[0]) * SCALE, len(rows) * SCALE)
+        out[name] = (sprite_rects(rows, dead, SCALE), len(rows[0]) * SCALE, len(rows) * SCALE,
+                     [], [])
     for name in out:
-        out[name] = custom_sprite(name) or out[name]
+        custom = custom_sprite(name)
+        if custom:
+            out[name] = (*custom, [], [])
     return out
 
 
@@ -245,18 +252,29 @@ def render(days, theme="dark"):
         offset = (dt.date.fromisoformat(date) - start).days
         col, row = offset // 7, offset % 7
         ref = f"tree{level}" if level else "stick"
-        _, w, h = sp[ref]
+        _, w, h, _, _ = sp[ref]
         x = LEFT + col * PITCH_X + (PITCH_X - w) // 2
         base = TOP + (row + 1) * PITCH_Y
         placed.append((row, col, ref, x, base - h))
 
-    # Back-to-front: higher rows first so lower trees overlap them
+    # Back-to-front: higher rows first so lower trees overlap them. Each row's
+    # gap lines are cut out of everything behind it with a mask, so the gap is
+    # transparent and shows whichever GitHub background the page has.
     placed.sort()
-    body = "".join(f'<use href="#{ref}" x="{x}" y="{y}"/>' for _, _, ref, x, y in placed)
-    defs = "".join(f'<g id="{k}">{svg}</g>' for k, (svg, _, _) in sp.items())
+    body, masks = "", []
+    for r in range(7):
+        row = [(ref, x, y) for rr, _, ref, x, y in placed if rr == r]
+        gaps = "".join(f'<rect x="{x + rx * SCALE}" y="{y + ry * SCALE}" width="{SCALE}" height="{SCALE}"/>'
+                       for ref, x, y in row for rx, ry in sp[ref][4])
+        if body and gaps:
+            masks.append(f'<mask id="gap{r}" maskUnits="userSpaceOnUse" x="0" y="0" width="{width}" height="{height}">'
+                         f'<rect width="{width}" height="{height}" fill="#fff"/><g fill="#000">{gaps}</g></mask>')
+            body = f'<g mask="url(#gap{r})">{body}</g>'
+        body += "".join(f'<use href="#{ref}" x="{x}" y="{y}"/>' for ref, x, y in row)
+    defs = "".join(f'<g id="{k}">{svg}</g>' for k, (svg, *_) in sp.items())
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
             f'viewBox="0 0 {width} {height}" shape-rendering="crispEdges">'
-            f'<defs>{defs}</defs>{body}</svg>')
+            f'<defs>{defs}{"".join(masks)}</defs>{body}</svg>')
 
 
 def main():
